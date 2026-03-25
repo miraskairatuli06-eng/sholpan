@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BioIntellect - ҰБТ Биология</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="header-nav">
+    <a href="index.html" class="logo">BioIntellect</a>
+    <div class="nav-links">
+      <a href="teacher.html">Мұғалім панелі</a>
+      <a href="bot.html">AI Көмекші</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="glass-panel animate-fade" style="margin-top: 10vh; text-align: center;">
+      <h1>BioIntellect-ке қош келдіңіз!</h1>
+      <p>Биология пәнінен ҰБТ-ға дайындалуға арналған интерактивті платформа. Өз біліміңізді тексеріп, жақсарту үшін төмендегі форманы толтырыңыз.</p>
+      
+      <div class="input-group" style="text-align: left;">
+        <label for="studentName">Аты-жөніңізді енгізіңіз</label>
+        <input type="text" id="studentName" placeholder="Мысалы, Асан Үсенов" required>
+      </div>
+      
+      <div class="actions">
+        <button id="startTestBtn" class="btn btn-primary">Тестті бастау</button>
+        <a href="bot.html" class="btn btn-secondary">AI Көмекшіден сұрау</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const startBtn = document.getElementById('startTestBtn');
+      const nameInput = document.getElementById('studentName');
+      
+      if(BioIntellect.currentUser) {
+        nameInput.value = BioIntellect.currentUser;
+      }
+
+      startBtn.addEventListener('click', () => {
+        if (!nameInput.value.trim()) {
+          alert('Тестті бастау үшін аты-жөніңізді енгізіңіз!');
+          return;
+        }
+        BioIntellect.login(nameInput.value);
+        window.location.href = 'test.html';
+      });
+    });
+  </script>
+</body>
+</html>

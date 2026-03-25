@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тест - BioIntellect</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="header-nav">
+    <a href="index.html" class="logo">BioIntellect</a>
+    <div class="nav-links">
+      <span id="userNameDisplay" style="font-weight: 600; color: var(--primary);"></span>
+      <a href="#" id="logoutBtn">Шығу</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="glass-panel animate-fade" id="testContainer">
+      <div class="row">
+        <h3>Тест: <span id="variantName">...</span></h3>
+        <span class="badge badge-primary" id="questionCounter">1 / 10</span>
+      </div>
+      
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div id="questionText" style="font-size: 1.2rem; font-weight: 600; margin-bottom: 1.5rem;">Жүктелуде...</div>
+      
+      <div class="option-list" id="optionsContainer">
+        <!-- Options will be dynamically inserted here -->
+      </div>
+      
+      <div class="test-controls">
+        <button id="nextBtn" class="btn btn-primary hidden">Келесі сұрақ</button>
+        <button id="finishBtn" class="btn btn-secondary hidden">Аяқтау</button>
+      </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div class="glass-panel animate-fade hidden" id="resultContainer" style="text-align: center;">
+      <h2>Тест аяқталды!</h2>
+      <div style="font-size: 4rem; font-weight: 800; color: var(--primary); margin: 1rem 0;">
+        <span id="scoreDisplay">0</span> / <span id="totalDisplay">0</span>
+      </div>
+      <p>Жауаптарыңыз сақталды. Төмендегі батырмалар арқылы жалғастыра аласыз.</p>
+      <div class="actions">
+        <a href="index.html" class="btn btn-primary">Басты бетке оралу</a>
+        <a href="bot.html" class="btn btn-secondary">Түсінбеген сұрақты AI-дан сұрау</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!BioIntellect.currentUser) {
+        window.location.href = 'index.html';
+        return;
+      }
+      
+      document.getElementById('userNameDisplay').textContent = BioIntellect.currentUser;
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        BioIntellect.logout();
+        window.location.href = 'index.html';
+      });
+
+      const currentVariantKey = BioIntellect.getRandomVariant();
+      if (!currentVariantKey) {
+        alert("Тесттер табылмады!");
+        return;
+      }
+      
+      const questions = testVariants[currentVariantKey];
+      let currentIdx = 0;
+      let score = 0;
+      let answered = false;
+      let selectedOptions = new Set(); 
+
+      const vNameSpan = document.getElementById('variantName');
+      const qCounterSpan = document.getElementById('questionCounter');
+      const progressFill = document.getElementById('progressFill');
+      const qTextDiv = document.getElementById('questionText');
+      const optContainer = document.getElementById('optionsContainer');
+      const nextBtn = document.getElementById('nextBtn');
+      const finishBtn = document.getElementById('finishBtn');
+
+      vNameSpan.textContent = currentVariantKey;
+
+      function loadQuestion() {
+        answered = false;
+        selectedOptions.clear();
+        nextBtn.classList.add('hidden');
+        finishBtn.classList.add('hidden');
+        optContainer.innerHTML = '';
+        
+        const q = questions[currentIdx];
+        qCounterSpan.textContent = `${currentIdx + 1} / ${questions.length}`;
+        progressFill.style.width = `${((currentIdx) / questions.length) * 100}%`;
+        qTextDiv.textContent = q.question;
+        
+        if (q.type === 'multi') {
+            const hint = document.createElement('div');
+            hint.style.fontSize = "0.85rem";
+            hint.style.color = "var(--text-muted)";
+            hint.style.marginBottom = "1rem";
+            hint.textContent = "Бірнеше дұрыс жауабы бар сұрақ - таңдаған соң 'Тексеру' батырмасын басыңыз";
+            optContainer.appendChild(hint);
+            nextBtn.classList.remove('hidden');
+            nextBtn.textContent = "Тексеру";
+        }
+
+        q.options.forEach((optText, i) => {
+          const div = document.createElement('div');
+          div.className = 'option-item animate-fade';
+          div.style.animationDelay = `${i * 0.1}s`;
+          div.textContent = optText;
+          div.dataset.index = i;
+          
+          div.addEventListener('click', () => {
+            if (answered && q.type !== 'multi') return;
+            
+            if (q.type === 'single') {
+                answered = true;
+                const isCorrect = (i === q.answer);
+                if (isCorrect) score++;
+                
+                Array.from(optContainer.children).forEach(child => {
+                    if(child.dataset) {
+                        const childIdx = parseInt(child.dataset.index);
+                        if (childIdx === q.answer) child.classList.add('correct');
+                        else if (childIdx === i) child.classList.add('wrong');
+                        child.style.pointerEvents = 'none';
+                    }
+                });
+
+                showNextButton();
+            } else if (q.type === 'multi') {
+                if(answered) return; 
+                if (selectedOptions.has(i)) {
+                    selectedOptions.delete(i);
+                    div.classList.remove('selected');
+                } else {
+                    selectedOptions.add(i);
+                    div.classList.add('selected');
+                }
+            }
+          });
+          optContainer.appendChild(div);
+        });
+      }
+
+      function showNextButton() {
+        if (currentIdx < questions.length - 1) {
+            nextBtn.textContent = "Келесі сұрақ";
+            nextBtn.classList.remove('hidden');
+        } else {
+            finishBtn.classList.remove('hidden');
+        }
+      }
+
+      function checkMultiAnswer() {
+        const q = questions[currentIdx];
+        answered = true;
+        
+        const correctAnswers = new Set(q.answers);
+        let isFullyCorrect = true;
+        
+        selectedOptions.forEach(sel => {
+            if (!correctAnswers.has(sel)) isFullyCorrect = false;
+        });
+        if (correctAnswers.size !== selectedOptions.size) isFullyCorrect = false;
+        
+        if (isFullyCorrect) score++;
+
+        Array.from(optContainer.children).forEach(child => {
+            if(child.dataset) {
+                const childIdx = parseInt(child.dataset.index);
+                if(correctAnswers.has(childIdx)) {
+                    child.classList.add('correct');
+                    child.classList.remove('selected');
+                } else if (selectedOptions.has(childIdx)) {
+                    child.classList.add('wrong');
+                    child.classList.remove('selected');
+                }
+                child.style.pointerEvents = 'none';
+            }
+        });
+        nextBtn.classList.add('hidden');
+        showNextButton();
+      }
+
+      nextBtn.addEventListener('click', () => {
+        const q = questions[currentIdx];
+        if (q.type === 'multi' && !answered) {
+            checkMultiAnswer();
+        } else {
+            currentIdx++;
+            loadQuestion();
+        }
+      });
+
+      finishBtn.addEventListener('click', () => {
+        if (!answered && questions[currentIdx].type === 'multi') {
+             checkMultiAnswer();
+             finishBtn.classList.add('hidden');
+             setTimeout(() => { finishTest(); }, 1500); 
+             return;
+        }
+        finishTest();
+      });
+
+      function finishTest() {
+        progressFill.style.width = '100%';
+        BioIntellect.saveResult(currentVariantKey, score, questions.length);
+        document.getElementById('testContainer').classList.add('hidden');
+        document.getElementById('resultContainer').classList.remove('hidden');
+        document.getElementById('scoreDisplay').textContent = score;
+        document.getElementById('totalDisplay').textContent = questions.length;
+      }
+
+      loadQuestion();
+    });
+  </script>
+</body>
+</html>
